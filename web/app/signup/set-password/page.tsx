@@ -12,8 +12,8 @@ import Input from '@/app/components/base/input'
 import { resolvePostLoginRedirect } from '@/app/signin/utils/post-login-redirect'
 import { validPassword } from '@/config'
 import { useLocale } from '@/context/i18n'
+import { userProfileQueryOptions } from '@/features/account-profile/client'
 import { useRouter, useSearchParams } from '@/next/navigation'
-import { consoleQuery } from '@/service/client'
 import { useMailRegister } from '@/service/use-common'
 import { rememberCreateAppExternalAttribution } from '@/utils/create-app-tracking'
 import { sendGAEvent } from '@/utils/gtag'
@@ -90,7 +90,9 @@ const ChangePasswordForm = () => {
         Cookies.remove('utm_info') // Clean up: remove utm_info cookie
 
         toast.success(t(($) => $['api.actionSuccess'], { ns: 'common' }))
-        await queryClient.resetQueries({ queryKey: consoleQuery.account.profile.get.key() })
+        const profileQueryOptions = userProfileQueryOptions()
+        await queryClient.resetQueries({ queryKey: profileQueryOptions.queryKey })
+        await queryClient.fetchQuery(profileQueryOptions)
         replaceLoginRedirect(resolvePostLoginRedirect(searchParams), router.replace, basePath)
       }
     } catch (error) {

@@ -1,10 +1,13 @@
+import type { GetAccountProfileResponse } from '@dify/contracts/api/console/account/types.gen'
 import type { ReactElement } from 'react'
 import type { MockedFunction } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import Cookies from 'js-cookie'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useLocale } from '@/context/i18n'
+import { userProfileQueryOptions } from '@/features/account-profile/client'
 import { useRouter, useSearchParams } from '@/next/navigation'
 import { useMailRegister } from '@/service/use-common'
 import { getBrowserTimezone } from '@/utils/timezone'
@@ -20,6 +23,10 @@ const {
   mockSendGAEvent: vi.fn(),
 }))
 
+const serviceBaseMocks = vi.hoisted(() => ({
+  get: vi.fn(),
+}))
+
 vi.mock('@/context/i18n', () => ({
   useLocale: vi.fn(),
 }))
@@ -32,6 +39,8 @@ vi.mock('@/next/navigation', () => ({
 vi.mock('@/service/use-common', () => ({
   useMailRegister: vi.fn(),
 }))
+
+vi.mock('@/service/base', () => serviceBaseMocks)
 
 vi.mock('@/utils/timezone', () => ({
   getBrowserTimezone: vi.fn(),
@@ -61,13 +70,47 @@ const mockGetBrowserTimezone = getBrowserTimezone as unknown as MockedFunction<
   typeof getBrowserTimezone
 >
 
-const renderWithQueryClient = (ui: ReactElement) => {
-  const queryClient = new QueryClient({
+const accountProfile: GetAccountProfileResponse = {
+  avatar: null,
+  avatar_url: null,
+  created_at: 1_700_000_000,
+  email: 'new-user@example.com',
+  id: 'new-account-id',
+  interface_language: 'en-US',
+  interface_theme: 'light',
+  is_password_set: true,
+  last_login_at: 1_700_000_000,
+  last_login_ip: '127.0.0.1',
+  name: 'new-user@example.com',
+  timezone: 'Asia/Shanghai',
+}
+
+const previousAccountProfile: GetAccountProfileResponse = {
+  ...accountProfile,
+  email: 'previous-user@example.com',
+  id: 'previous-account-id',
+  name: 'Previous User',
+}
+
+const createProfileResponse = () =>
+  new Response(JSON.stringify(accountProfile), {
+    headers: {
+      'content-type': 'application/json',
+      'x-env': 'DEVELOPMENT',
+      'x-version': '1.0.0',
+    },
+    status: 200,
+  })
+
+const createQueryClient = () =>
+  new QueryClient({
     defaultOptions: {
       queries: { retry: false },
       mutations: { retry: false },
     },
   })
+
+const renderWithQueryClient = (ui: ReactElement, queryClient = createQueryClient()) => {
   return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>)
 }
 
@@ -88,6 +131,8 @@ describe('Signup Set Password Page', () => {
     } as unknown as ReturnType<typeof useMailRegister>)
     mockGetBrowserTimezone.mockReturnValue('Asia/Shanghai')
     mockRegister.mockResolvedValue({ result: 'fail', data: {} })
+    serviceBaseMocks.get.mockReset()
+    serviceBaseMocks.get.mockImplementation(async () => createProfileResponse())
   })
 
   describe('Registration payload', () => {
@@ -158,6 +203,53 @@ describe('Signup Set Password Page', () => {
 
       await waitFor(() => {
         expect(mockReplace).toHaveBeenCalledWith('/apps?tag=workflow')
+      })
+    })
+
+    it('should resolve the new account profile before navigating after registration', async () => {
+      const user = userEvent.setup()
+      const queryClient = createQueryClient()
+      const profileQueryOptions = userProfileQueryOptions()
+      const profileQueryKey = profileQueryOptions.queryKey
+      let resolveProfileResponse: (response: Response) => void = () => {}
+      const profileResponse = new Promise<Response>((resolve) => {
+        resolveProfileResponse = resolve
+      })
+      queryClient.setQueryData(profileQueryKey, {
+        profile: previousAccountProfile,
+        meta: {
+          currentEnv: 'DEVELOPMENT',
+          currentVersion: '1.0.0',
+        },
+      })
+      serviceBaseMocks.get.mockReset().mockReturnValueOnce(profileResponse)
+      mockRegister.mockResolvedValue({ result: 'success', data: {} })
+
+      renderWithQueryClient(<ChangePasswordForm />, queryClient)
+      await user.type(screen.getByLabelText('common.account.newPassword'), 'ValidPass123!')
+      await user.type(screen.getByLabelText('common.account.confirmPassword'), 'ValidPass123!')
+      await user.click(screen.getByRole('button', { name: 'login.changePasswordBtn' }))
+
+      await waitFor(() => {
+        expect(serviceBaseMocks.get).toHaveBeenCalledOnce()
+      })
+      expect(queryClient.getQueryState(profileQueryKey)).toMatchObject({
+        fetchStatus: 'fetching',
+        status: 'pending',
+      })
+      expect(mockReplace).not.toHaveBeenCalled()
+
+      resolveProfileResponse(createProfileResponse())
+
+      await waitFor(() => {
+        expect(mockReplace).toHaveBeenCalledWith('/')
+      })
+      expect(queryClient.getQueryState(profileQueryKey)?.status).toBe('success')
+      expect(queryClient.getQueryData(profileQueryKey)).toMatchObject({
+        profile: {
+          email: 'new-user@example.com',
+          id: 'new-account-id',
+        },
       })
     })
 
