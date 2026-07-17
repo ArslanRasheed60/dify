@@ -26,12 +26,14 @@ vi.mock('@/service/client', () => ({
 
 describe('useTrialCredits', () => {
   const mockTrialCreditsQuery = (
-    data: {
-      trial_credits?: number
-      trial_credits_used?: number
-      trial_credits_exhausted_at?: number
-      next_credit_reset_date?: number
-    } | undefined,
+    data:
+      | {
+          trial_credits?: number
+          trial_credits_used?: number
+          trial_credits_exhausted_at?: number
+          next_credit_reset_date?: number
+        }
+      | undefined,
     isPending = false,
   ) => {
     mockUseQuery.mockImplementation((options: { select?: (value: typeof data) => unknown }) => ({

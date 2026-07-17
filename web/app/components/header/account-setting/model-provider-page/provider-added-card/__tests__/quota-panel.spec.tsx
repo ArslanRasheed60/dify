@@ -4,12 +4,14 @@ import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { renderWithSystemFeatures } from '@/__tests__/utils/mock-system-features'
 import QuotaPanel from '../quota-panel'
 
-let mockWorkspaceData: {
-  trial_credits: number
-  trial_credits_used: number
-  trial_credits_exhausted_at?: number
-  next_credit_reset_date: number
-} | undefined = {
+let mockWorkspaceData:
+  | {
+      trial_credits: number
+      trial_credits_used: number
+      trial_credits_exhausted_at?: number
+      next_credit_reset_date: number
+    }
+  | undefined = {
   trial_credits: 100,
   trial_credits_used: 30,
   next_credit_reset_date: 1735603200,
@@ -124,11 +126,7 @@ describe('QuotaPanel', () => {
   })
 
   it('should show used credits, total credits, and reset date', () => {
-    renderQuotaPanel(
-      <QuotaPanel
-        providers={mockProviders}
-      />,
-    )
+    renderQuotaPanel(<QuotaPanel providers={mockProviders} />)
 
     expect(screen.getByText(/modelProvider\.quota/)).toBeInTheDocument()
     expect(screen.getByText('30')).toBeInTheDocument()
@@ -161,7 +159,7 @@ describe('QuotaPanel', () => {
 
     const usageNumbers = screen.getAllByText('10')
     expect(usageNumbers).toHaveLength(2)
-    usageNumbers.forEach(number => expect(number).toHaveClass('text-text-destructive'))
+    usageNumbers.forEach((number) => expect(number).toHaveClass('text-text-destructive'))
     expect(screen.getByText(/modelProvider\.used/)).toHaveClass('text-text-destructive')
     expect(screen.getByText(/modelProvider\.ranOutDate/)).toBeInTheDocument()
     expect(screen.getByText('/')).toHaveClass('font-normal', 'text-text-tertiary')

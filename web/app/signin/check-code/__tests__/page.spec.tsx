@@ -156,5 +156,44 @@ describe('CheckCode', () => {
       })
       expect(locationReplace).not.toHaveBeenCalled()
     })
+
+    it('should keep a Cloud verification-code login on the current deployment', async () => {
+      const user = userEvent.setup()
+      const queryClient = createQueryClient()
+      const locationReplace = vi.fn()
+      navigationMocks.searchParams = new URLSearchParams({
+        email: 'hanxujiang%2B4%40dify.ai',
+        token: 'email-login-token',
+      })
+      serviceBaseMocks.get.mockResolvedValue(
+        new Response(JSON.stringify(accountProfile), {
+          headers: {
+            'content-type': 'application/json',
+            'x-env': 'DEVELOPMENT',
+            'x-version': '1.0.0',
+          },
+          status: 200,
+        }),
+      )
+      vi.stubGlobal('location', {
+        ...window.location,
+        origin: 'https://saas.dify.dev',
+        replace: locationReplace,
+      } as unknown as Location)
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <CheckCode />
+        </QueryClientProvider>,
+      )
+
+      await user.type(screen.getByLabelText('login.checkCode.verificationCode'), '123456')
+      await user.click(screen.getByRole('button', { name: 'login.checkCode.verify' }))
+
+      await waitFor(() => {
+        expect(navigationMocks.replace).toHaveBeenCalledWith('/')
+      })
+      expect(locationReplace).not.toHaveBeenCalled()
+    })
   })
 })

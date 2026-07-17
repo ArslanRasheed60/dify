@@ -73,21 +73,24 @@ type QuotaPanelProps = {
 }
 const QuotaPanel: FC<QuotaPanelProps> = ({ providers }) => {
   const { t } = useTranslation()
-  const { usedCredits, totalCredits, isExhausted, isLoading, exhaustedAt, nextCreditResetDate } = useTrialCredits()
-  const { data: trialModels = [] } = useQuery(consoleQuery.trialModels.get.queryOptions({
-    enabled: IS_CLOUD_EDITION,
-    select: data => data.trial_models,
-  }))
-  const providerMap = useMemo(() => new Map(
-    providers.map(p => [p.provider, p.preferred_provider_type]),
-  ), [providers])
-  const installedProvidersMap = useMemo(() => new Map(
-    providers.map(p => [p.provider, p.custom_configuration.available_credentials]),
-  ), [providers])
+  const { usedCredits, totalCredits, isExhausted, isLoading, exhaustedAt, nextCreditResetDate } =
+    useTrialCredits()
+  const { data: trialModels = [] } = useQuery(
+    consoleQuery.trialModels.get.queryOptions({
+      enabled: IS_CLOUD_EDITION,
+      select: (data) => data.trial_models,
+    }),
+  )
+  const providerMap = useMemo(
+    () => new Map(providers.map((p) => [p.provider, p.preferred_provider_type])),
+    [providers],
+  )
+  const installedProvidersMap = useMemo(
+    () => new Map(providers.map((p) => [p.provider, p.custom_configuration.available_credentials])),
+    [providers],
+  )
   const { formatMonthDay } = useTimestamp()
-  const {
-    plugins: allPlugins,
-  } = useMarketplaceAllPlugins(providers, '')
+  const { plugins: allPlugins } = useMarketplaceAllPlugins(providers, '')
   const [selectedPlugin, setSelectedPlugin] = useState<Plugin | null>(null)
   const [
     isShowInstallModal,
@@ -156,46 +159,48 @@ const QuotaPanel: FC<QuotaPanelProps> = ({ providers }) => {
           {t(($) => $['modelProvider.quotaLabel'], { ns: 'common' })}
           <QuotaInfotip tipText={tipText} />
         </div>
-        <div className="flex h-6 items-center justify-between">
-          <div className="flex items-center gap-1">
-            <span className={cn('mr-0.5 system-xl-semibold', creditUsageTextClassName)}>
-              {formatNumber(usedCredits)}
-            </span>
-            <span className="font-normal text-text-tertiary">/</span>
-            <span className={cn('system-xl-semibold', creditUsageTextClassName)}>
-              {formatNumber(totalCredits)}
-            </span>
-            <span className={cn('system-xs-regular', creditUsageTextClassName)}>
-              {t(($) => $['modelProvider.used'], { ns: 'common' })}
-            </span>
-            {isExhausted && exhaustedAt
-              ? (
-                  <>
-                    <span aria-hidden className="shrink-0 system-sm-regular text-text-tertiary">·</span>
-                    <span className="min-w-0 truncate system-sm-regular text-text-tertiary">
-                      {t('modelProvider.ranOutDate', {
-                        ns: 'common',
-                        date: formatMonthDay(exhaustedAt),
-                        interpolation: { escapeValue: false },
-                      })}
-                    </span>
-                  </>
-                )
-              : null}
-            {nextCreditResetDate
-              ? (
-                  <>
-                    <span aria-hidden className="shrink-0 system-sm-regular text-text-tertiary">·</span>
-                    <span className="min-w-0 truncate system-sm-regular text-text-tertiary">
-                      {t('modelProvider.resetDate', {
-                        ns: 'common',
-                        date: formatMonthDay(nextCreditResetDate),
-                        interpolation: { escapeValue: false },
-                      })}
-                    </span>
-                  </>
-                )
-              : null}
+        <div className="flex h-6 items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <div className="flex shrink-0 items-baseline gap-1">
+              <span className={cn('system-xl-semibold', creditUsageTextClassName)}>
+                {formatNumber(usedCredits)}
+              </span>
+              <span className="text-base leading-6 font-normal text-text-tertiary">/</span>
+              <span className={cn('system-xl-semibold', creditUsageTextClassName)}>
+                {formatNumber(totalCredits)}
+              </span>
+              <span className={cn('system-md-medium', creditUsageTextClassName)}>
+                {t(($) => $['modelProvider.used'], { ns: 'common' })}
+              </span>
+            </div>
+            {isExhausted && exhaustedAt ? (
+              <>
+                <span aria-hidden className="shrink-0 system-sm-regular text-text-tertiary">
+                  ·
+                </span>
+                <span className="min-w-0 truncate system-sm-regular text-text-tertiary">
+                  {t(($) => $['modelProvider.ranOutDate'], {
+                    ns: 'common',
+                    date: formatMonthDay(exhaustedAt),
+                    interpolation: { escapeValue: false },
+                  })}
+                </span>
+              </>
+            ) : null}
+            {nextCreditResetDate ? (
+              <>
+                <span aria-hidden className="shrink-0 system-sm-regular text-text-tertiary">
+                  ·
+                </span>
+                <span className="min-w-0 truncate system-sm-regular text-text-tertiary">
+                  {t(($) => $['modelProvider.resetDate'], {
+                    ns: 'common',
+                    date: formatMonthDay(nextCreditResetDate),
+                    interpolation: { escapeValue: false },
+                  })}
+                </span>
+              </>
+            ) : null}
           </div>
           <div className="flex shrink-0 items-center gap-1">
             {allProviders
@@ -218,9 +223,10 @@ const QuotaPanel: FC<QuotaPanelProps> = ({ providers }) => {
                     <TooltipTrigger
                       aria-label={tooltipText}
                       render={
-                        <div
+                        <button
+                          type="button"
                           className={cn(
-                            'relative size-6',
+                            'relative size-6 border-0 bg-transparent p-0',
                             !providerType && canInstallPlugin && 'cursor-pointer hover:opacity-80',
                           )}
                           onClick={() => handleIconClick(key)}
@@ -229,7 +235,7 @@ const QuotaPanel: FC<QuotaPanelProps> = ({ providers }) => {
                           {!providerType && (
                             <div className="absolute inset-0 rounded-lg border-[0.5px] border-components-panel-border-subtle bg-background-default-dodge opacity-30" />
                           )}
-                        </div>
+                        </button>
                       }
                     />
                     <TooltipContent>{tooltipText}</TooltipContent>
