@@ -89,20 +89,18 @@ describe('CheckCode', () => {
   })
 
   describe('Post-login profile bootstrap', () => {
-    it('should resolve an inactive profile query before navigating to the console home', async () => {
+    it('should clear the cached profile before navigating to the console home', async () => {
       const user = userEvent.setup()
       const queryClient = createQueryClient()
       const profileQueryOptions = userProfileQueryOptions()
       const profileQueryKey = profileQueryOptions.queryKey
-      let resolveProfileResponse: (response: Response) => void = () => {}
-      const profileResponse = new Promise<Response>((resolve) => {
-        resolveProfileResponse = resolve
+      queryClient.setQueryData(profileQueryKey, {
+        profile: accountProfile,
+        meta: {
+          currentEnv: 'DEVELOPMENT',
+          currentVersion: '1.0.0',
+        },
       })
-      serviceBaseMocks.get
-        .mockRejectedValueOnce(new Response(null, { status: 401 }))
-        .mockReturnValueOnce(profileResponse)
-      await queryClient.prefetchQuery(profileQueryOptions)
-      expect(queryClient.getQueryState(profileQueryKey)?.status).toBe('error')
 
       render(
         <QueryClientProvider client={queryClient}>
@@ -114,29 +112,10 @@ describe('CheckCode', () => {
       await user.click(screen.getByRole('button', { name: 'login.checkCode.verify' }))
 
       await waitFor(() => {
-        expect(serviceBaseMocks.get).toHaveBeenCalledTimes(2)
-      })
-      expect(queryClient.getQueryState(profileQueryKey)).toMatchObject({
-        fetchStatus: 'fetching',
-        status: 'pending',
-      })
-      expect(navigationMocks.replace).not.toHaveBeenCalled()
-
-      resolveProfileResponse(
-        new Response(JSON.stringify(accountProfile), {
-          headers: {
-            'content-type': 'application/json',
-            'x-env': 'DEVELOPMENT',
-            'x-version': '1.0.0',
-          },
-          status: 200,
-        }),
-      )
-
-      await waitFor(() => {
         expect(navigationMocks.replace).toHaveBeenCalledWith('/apps')
       })
-      expect(queryClient.getQueryState(profileQueryKey)?.status).toBe('success')
+      expect(serviceBaseMocks.get).not.toHaveBeenCalled()
+      expect(queryClient.getQueryData(profileQueryKey)).toBeUndefined()
     })
 
     it('should keep a Cloud verification-code login on the current deployment', async () => {
